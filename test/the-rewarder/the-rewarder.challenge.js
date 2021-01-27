@@ -1,6 +1,7 @@
 const { ether, time } = require('@openzeppelin/test-helpers');
 const { accounts, contract } = require('@openzeppelin/test-environment');
 
+const util = require('util');
 const FlashLoanerPool = contract.fromArtifact('FlashLoanerPool');
 const TheRewarderPool = contract.fromArtifact('TheRewarderPool');
 const DamnValuableToken = contract.fromArtifact('DamnValuableToken');
@@ -72,7 +73,12 @@ describe('[Challenge] The rewarder', function () {
             { from: attacker }
         );
 
-        await hackContract.hackit({ from: attacker });
+        const receipt = await hackContract.hackit({ from: attacker });
+        // @TODO seems like Events emitted by contracted called by
+        // the invoked contract are not included in the
+        // receipt.logs or receipt.rawLogs - how to output these?
+        // const util = require('util');
+        // console.log(util.inspect(receipt.receipt.rawLogs));
         await this.rewarderPool.distributeRewards({ from: attacker });
         await hackContract.withdraw({ from: attacker });
     });
